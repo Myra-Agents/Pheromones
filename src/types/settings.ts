@@ -27,8 +27,41 @@ export interface AppSettings {
   /**
    * Non-secret plugin config values, keyed `pluginFolder → { CONFIG_KEY → value }`.
    * Secret-typed fields are NOT here — they live in the OS keychain. Omitted = none.
+   *
+   * Legacy single-config-per-plugin model. Superseded by {@link pluginInstances}
+   * for webhook plugins, but kept for back-compat + agent-only plugins. On first
+   * load the server synthesizes one {@link PluginInstance} per configured folder.
    */
   pluginConfig?: Record<string, Record<string, string | number | boolean>>;
+  /**
+   * Named integration instances, keyed by stable `instanceId`. Each is one
+   * configured deployment of a source plugin (e.g. two Slack instances pointing
+   * at different channels), with its own config, secrets (keychain, keyed by
+   * instance id), and trigger overrides. An instance "is on this machine" iff
+   * it appears in this map. Omitted = none.
+   */
+  pluginInstances?: Record<string, PluginInstance>;
+}
+
+/**
+ * One configured deployment of a source plugin. Multiple instances of the same
+ * plugin can run at once (Slack→#eng and Slack→#sales), each with its own config,
+ * secrets, and trigger overrides. Created/edited from the app's connect wizard.
+ */
+export interface PluginInstance {
+  /** Stable uuid generated on create — globally unique across machines. */
+  id: string;
+  /** Source plugin folder name (e.g. `"slack"`). Indexes the `list_plugins` catalog. */
+  plugin: string;
+  /** User-facing name (e.g. `"#eng-alerts"`). */
+  label: string;
+  enabled: boolean;
+  /** Non-secret config values. Secret-typed fields live in the keychain (`inst:{id}:{key}`). */
+  config: Record<string, string | number | boolean>;
+  /** Per-instance override of the plugin's outbound webhook `events`; falls back to the manifest. */
+  events?: string[];
+  /** Per-instance override of the plugin's outbound webhook `template`; falls back to the manifest. */
+  template?: string;
 }
 
 /** A user-supplied plugin setting, rendered as a form field in Settings → Plugins. */
