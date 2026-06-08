@@ -37,6 +37,8 @@ export interface InstanceInfo {
   label: string;
   capabilities: Capability[];
   status: "online";
+  /** Server build version the instance reported in its {@link HelloFrame}, if known. */
+  version?: string;
 }
 
 // --- Instance ↔ hub reverse-tunnel frames -----------------------------------
@@ -47,6 +49,8 @@ export interface HelloFrame {
   instanceId: string;
   label: string;
   capabilities: Capability[];
+  /** Server build version (`CARGO_PKG_VERSION`), so the dashboard can flag stale instances. */
+  version?: string;
 }
 
 /** A command forwarded down from a dashboard, awaiting an {@link RpcResultFrame}. */
