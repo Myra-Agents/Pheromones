@@ -8,6 +8,95 @@ export interface AgentPreset {
   binary: string;
   argsTemplate: string;
   workingDir?: string;
+  /**
+   * Extra CLI flags appended after the rendered argsTemplate. Boolean flags
+   * are stored as-is (`"--share"`), value-taking flags as `"--model=provider/model"`.
+   */
+  flags?: string[];
+  /** Run the agent inside a fresh git worktree of the working directory. */
+  useWorktree?: boolean;
+}
+
+/** One selectable CLI flag for an agent binary (drives the options UI). */
+export interface AgentFlagDef {
+  /** The flag itself, e.g. `"--share"`. */
+  flag: string;
+  /** Short English hint shown next to the flag. */
+  hint: string;
+  /** Flag expects a value (`--flag=value`). */
+  takesValue?: boolean;
+  /** Placeholder for the value input. */
+  valuePlaceholder?: string;
+  /** Surfaced as a dedicated checkbox (others live in the multiselect). */
+  featured?: boolean;
+  /** Visually flagged as dangerous (e.g. permission bypass). */
+  danger?: boolean;
+}
+
+/**
+ * Known CLI flags per agent binary, used to render the options checkboxes and
+ * the "all options" multiselect. Keyed by `AgentPreset.binary`.
+ */
+export const AGENT_FLAG_CATALOG: Record<string, AgentFlagDef[]> = {
+  opencode: [
+    {
+      flag: "--dangerously-skip-permissions",
+      hint: "Auto-approve all permissions",
+      featured: true,
+      danger: true,
+    },
+    { flag: "--share", hint: "Share the session", featured: true },
+    { flag: "--thinking", hint: "Show thinking blocks", featured: true },
+    { flag: "--continue", hint: "Continue the last session" },
+    { flag: "--fork", hint: "Fork the session when continuing" },
+    { flag: "--model", hint: "Model to use", takesValue: true, valuePlaceholder: "provider/model" },
+    { flag: "--variant", hint: "Model variant (reasoning effort)", takesValue: true, valuePlaceholder: "high" },
+    { flag: "--agent", hint: "Agent to use", takesValue: true, valuePlaceholder: "build" },
+    { flag: "--session", hint: "Session id to continue", takesValue: true, valuePlaceholder: "ses_…" },
+    { flag: "--title", hint: "Title for the session", takesValue: true },
+    { flag: "--format", hint: "Output format", takesValue: true, valuePlaceholder: "default | json" },
+    { flag: "--file", hint: "File to attach to the message", takesValue: true, valuePlaceholder: "./path" },
+    { flag: "--attach", hint: "Attach to a running server", takesValue: true, valuePlaceholder: "http://…" },
+    { flag: "--port", hint: "Local server port", takesValue: true, valuePlaceholder: "4096" },
+    { flag: "--log-level", hint: "Log level", takesValue: true, valuePlaceholder: "INFO" },
+    { flag: "--print-logs", hint: "Print logs to stderr" },
+    { flag: "--pure", hint: "Run without external plugins" },
+  ],
+};
+
+/** One way of installing an agent binary, shown in the manual-install dialog. */
+export interface AgentInstallMethod {
+  id: string;
+  label: string;
+  command: string;
+}
+
+export interface AgentInstallInfo {
+  docsUrl: string;
+  /** Shell one-liner the server runs for one-click install (unix only). */
+  installScript: string;
+  methods: AgentInstallMethod[];
+}
+
+/** Install instructions per agent binary. Keyed by `AgentPreset.binary`. */
+export const AGENT_INSTALL_INFO: Record<string, AgentInstallInfo> = {
+  opencode: {
+    docsUrl: "https://opencode.ai/docs",
+    installScript: "curl -fsSL https://opencode.ai/install | bash",
+    methods: [
+      { id: "curl", label: "Install script", command: "curl -fsSL https://opencode.ai/install | bash" },
+      { id: "brew", label: "Homebrew", command: "brew install anomalyco/tap/opencode" },
+      { id: "npm", label: "npm", command: "npm install -g opencode-ai" },
+      { id: "bun", label: "Bun", command: "bun install -g opencode-ai" },
+    ],
+  },
+};
+
+/** Result of the `check_binary` rpc. */
+export interface BinaryStatus {
+  found: boolean;
+  path?: string;
+  version?: string;
 }
 
 export interface AppSettings {
@@ -132,7 +221,8 @@ export const DEFAULT_AGENT_PRESETS: AgentPreset[] = [
     id: "opencode",
     name: "OpenCode",
     binary: "opencode",
-    argsTemplate: "run {prompt} --dangerously-skip-permissions",
+    argsTemplate: "run {prompt}",
+    flags: ["--dangerously-skip-permissions"],
   },
   // Only OpenCode ships for now — re-enable once integrated.
   // {
