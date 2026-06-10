@@ -103,23 +103,52 @@ export const OPENCODE_VARIANTS_BY_PROVIDER: Record<string, string[]> = {
 /** All variants ordered by increasing reasoning effort, for dropdown display. */
 const OPENCODE_VARIANT_ORDER = ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
 
+/** Sort variant names by increasing reasoning effort; unknown names sink last (stable). */
+export function sortOpencodeVariants(variants: string[]): string[] {
+  const rank = (variant: string) => {
+    const index = OPENCODE_VARIANT_ORDER.indexOf(variant);
+    return index === -1 ? OPENCODE_VARIANT_ORDER.length : index;
+  };
+  return [...variants].sort((a, b) => rank(a) - rank(b));
+}
+
 /**
  * Effort choices for an opencode `provider/model` id, ordered by increasing
  * effort. Unknown or empty model → the union of all known variants (the
  * provider can't be inferred yet).
+ *
+ * Static fallback only — variants really are per-model, so prefer the
+ * `list_models` rpc's {@link AgentModelsResult.variants} when available.
  */
 export function opencodeVariantsForModel(model: string): string[] {
   const provider = model.split("/")[0]?.trim().toLowerCase() ?? "";
   const known = OPENCODE_VARIANTS_BY_PROVIDER[provider];
-  const variants = known ?? [...new Set(Object.values(OPENCODE_VARIANTS_BY_PROVIDER).flat())];
-  return [...variants].sort(
-    (a, b) => OPENCODE_VARIANT_ORDER.indexOf(a) - OPENCODE_VARIANT_ORDER.indexOf(b),
-  );
+  return sortOpencodeVariants(known ?? [...new Set(Object.values(OPENCODE_VARIANTS_BY_PROVIDER).flat())]);
 }
 
 /** Result of the `list_models` rpc — model ids the agent CLI reports. */
 export interface AgentModelsResult {
   models: string[];
+  /**
+   * Reasoning-effort variants per model id (e.g. `"openai/gpt-5" → ["low","high"]`),
+   * parsed from `opencode models --verbose`. A model absent from the map (or
+   * mapped to `[]`) supports no variants. Omitted by older servers — fall back
+   * to {@link opencodeVariantsForModel}.
+   */
+  variants?: Record<string, string[]>;
+  /**
+   * $ per million tokens per model id (models.dev data via
+   * `opencode models --verbose`). Absent for models without pricing data;
+   * `input === 0 && output === 0` means the model is free. Omitted by older
+   * servers.
+   */
+  cost?: Record<string, AgentModelCost>;
+}
+
+/** $/M-token pricing for one model. */
+export interface AgentModelCost {
+  input: number;
+  output: number;
 }
 
 /** One way of installing an agent binary, shown in the manual-install dialog. */
