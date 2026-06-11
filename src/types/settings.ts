@@ -15,7 +15,35 @@ export interface AgentPreset {
   flags?: string[];
   /** Run the agent inside a fresh git worktree of the working directory. */
   useWorktree?: boolean;
+  /**
+   * How the harness binary is launched.
+   * - `"direct"` (default): run `binary argsTemplate` straight, the harness uses
+   *   its own cloud provider config.
+   * - `"ollama"`: route through `ollama launch <binary> --yes --model <ollamaModel>
+   *   -- argsTemplate`, so a **local** Ollama model serves the run. Ollama injects
+   *   the per-harness wiring (env for opencode/claude, profile for codex); the
+   *   server scopes that config to the run via a throwaway config home so it never
+   *   leaks into later (e.g. cloud) tasks. See {@link OLLAMA_LAUNCH_HARNESSES}.
+   */
+  launchVia?: "direct" | "ollama";
+  /**
+   * Local Ollama model tag to serve the run with when `launchVia === "ollama"`
+   * (e.g. `"qwen3-coder"`). Ignored for `"direct"`. Stored here rather than as a
+   * `--model` flag because it is `ollama launch`'s argument, not the harness's.
+   */
+  ollamaModel?: string;
 }
+
+/**
+ * Harness subcommands `ollama launch` knows how to wire to a local model. The
+ * `AgentPreset.binary` must be one of these for `launchVia: "ollama"` to work.
+ * Mirrors Ollama's `cmd/launch/*` integrations (docs.ollama.com/integrations).
+ */
+export const OLLAMA_LAUNCH_HARNESSES = ["opencode", "claude", "codex"] as const;
+export type OllamaLaunchHarness = (typeof OLLAMA_LAUNCH_HARNESSES)[number];
+
+/** Minimum Ollama version that ships `ollama launch` (local-model harness wiring). */
+export const OLLAMA_MIN_VERSION = "0.15.0";
 
 /** One selectable CLI flag for an agent binary (drives the options UI). */
 export interface AgentFlagDef {
@@ -194,6 +222,37 @@ export const AGENT_INSTALL_INFO: Record<string, AgentInstallInfo> = {
       { id: "bun", label: "Bun", command: "bun install -g opencode-ai" },
     ],
   },
+  claude: {
+    docsUrl: "https://code.claude.com/docs/en/quickstart",
+    installScript: "curl -fsSL https://claude.ai/install.sh | bash",
+    methods: [
+      { id: "curl", label: "Install script", command: "curl -fsSL https://claude.ai/install.sh | bash" },
+      { id: "npm", label: "npm", command: "npm install -g @anthropic-ai/claude-code" },
+    ],
+  },
+  codex: {
+    docsUrl: "https://developers.openai.com/codex/cli",
+    installScript: "npm install -g @openai/codex",
+    methods: [
+      { id: "npm", label: "npm", command: "npm install -g @openai/codex" },
+      { id: "brew", label: "Homebrew", command: "brew install codex" },
+    ],
+  },
+};
+
+/**
+ * Install instructions for the Ollama runtime itself (not a harness — the local
+ * model server). The server's `install_ollama` rpc runs the platform default;
+ * these power the manual-fallback dialog.
+ */
+export const OLLAMA_INSTALL_INFO: AgentInstallInfo = {
+  docsUrl: "https://ollama.com/download",
+  installScript: "curl -fsSL https://ollama.com/install.sh | sh",
+  methods: [
+    { id: "brew", label: "Homebrew (macOS)", command: "brew install ollama" },
+    { id: "curl", label: "Install script (Linux)", command: "curl -fsSL https://ollama.com/install.sh | sh" },
+    { id: "winget", label: "winget (Windows)", command: "winget install Ollama.Ollama" },
+  ],
 };
 
 /** Result of the `check_binary` rpc. */
@@ -202,6 +261,115 @@ export interface BinaryStatus {
   path?: string;
   version?: string;
 }
+
+// ───────────────────────── Ollama (local models) ────────────────────────
+
+/** One model pulled into the local Ollama store (`ollama_status.models`). */
+export interface OllamaModel {
+  /** Tag, e.g. `"qwen3-coder:latest"`. */
+  name: string;
+  /** On-disk size in bytes. */
+  size?: number;
+  /** Parameter size label from the model card, e.g. `"7B"`. */
+  parameterSize?: string;
+}
+
+/** Result of the `ollama_status` rpc — install + daemon + installed-model state. */
+export interface OllamaStatus {
+  /** The `ollama` binary is on PATH / in a known install dir. */
+  installed: boolean;
+  /** Reported `ollama --version` (null when missing/unreadable). */
+  version: string | null;
+  /** Version is ≥ {@link OLLAMA_MIN_VERSION} (so `ollama launch` exists). */
+  launchCapable: boolean;
+  /** The daemon answers on the local API right now. */
+  running: boolean;
+  /** Models already pulled locally. Empty when the daemon is down. */
+  models: OllamaModel[];
+}
+
+/**
+ * Streamed progress for a `pull_model` run, emitted on the `ollama-pull-progress`
+ * bus event (one per layer/status line of Ollama's `/api/pull`). `total`/
+ * `completed` are bytes for the current layer; absent for status-only lines.
+ */
+export interface OllamaPullProgress {
+  /** Model tag being pulled, echoes the request. */
+  model: string;
+  /** Ollama's status string, e.g. `"pulling manifest"`, `"downloading"`, `"success"`. */
+  status: string;
+  total?: number;
+  completed?: number;
+  /** True on the terminal line (`status === "success"` or an error). */
+  done?: boolean;
+  /** Set when the pull failed. */
+  error?: string;
+}
+
+/** One curated entry in the local-model catalogue shown in the picker/settings. */
+export interface OllamaCatalogModel {
+  /** Pull tag, e.g. `"qwen2.5-coder:7b"`. */
+  tag: string;
+  /** Human label, e.g. `"Qwen2.5 Coder 7B"`. */
+  label: string;
+  /** Rough download size, e.g. `"4.7 GB"`. */
+  size: string;
+  /** Recommended minimum system RAM, e.g. `"8 GB"`. */
+  minRam: string;
+  /** One-line "good for…" hint. */
+  blurb: string;
+}
+
+/**
+ * Curated coder-friendly models for the "pull a local model" UI. Not exhaustive —
+ * the UI also accepts a free-form tag for anything on ollama.com/library. Sizes
+ * are approximate (default quantization) and only steer the user; the real pull
+ * size comes from the daemon.
+ */
+export const OLLAMA_MODEL_CATALOG: OllamaCatalogModel[] = [
+  {
+    tag: "qwen3-coder",
+    label: "Qwen3 Coder",
+    size: "4.7 GB",
+    minRam: "8 GB",
+    blurb: "Strong general coding default",
+  },
+  {
+    tag: "qwen2.5-coder:7b",
+    label: "Qwen2.5 Coder 7B",
+    size: "4.7 GB",
+    minRam: "8 GB",
+    blurb: "Fast, fits modest machines",
+  },
+  {
+    tag: "qwen2.5-coder:32b",
+    label: "Qwen2.5 Coder 32B",
+    size: "19 GB",
+    minRam: "24 GB",
+    blurb: "Best quality, needs a big GPU",
+  },
+  {
+    tag: "gpt-oss:20b",
+    label: "gpt-oss 20B",
+    size: "13 GB",
+    minRam: "16 GB",
+    blurb: "Open-weight, solid reasoning",
+  },
+  {
+    tag: "llama3.1:8b",
+    label: "Llama 3.1 8B",
+    size: "4.9 GB",
+    minRam: "8 GB",
+    blurb: "Versatile all-rounder",
+  },
+  {
+    tag: "devstral:24b",
+    label: "Devstral 24B",
+    size: "14 GB",
+    minRam: "20 GB",
+    blurb: "Agentic-coding tuned",
+  },
+];
 
 export interface AppSettings {
   defaultAgentId: string;
@@ -328,18 +496,25 @@ export const DEFAULT_AGENT_PRESETS: AgentPreset[] = [
     argsTemplate: "run {prompt}",
     flags: ["--dangerously-skip-permissions"],
   },
-  // Only OpenCode ships for now — re-enable once integrated.
+  {
+    id: "claude",
+    name: "Claude Code",
+    binary: "claude",
+    argsTemplate: "-p {prompt}",
+    flags: ["--dangerously-skip-permissions"],
+  },
+  {
+    id: "codex",
+    name: "Codex",
+    binary: "codex",
+    argsTemplate: "exec {prompt}",
+    flags: ["--full-auto"],
+  },
   // {
   //   id: "copilot",
   //   name: "GitHub Copilot CLI",
   //   binary: "copilot",
   //   argsTemplate: "-p {prompt} --yolo",
-  // },
-  // {
-  //   id: "claude",
-  //   name: "Claude CLI",
-  //   binary: "claude",
-  //   argsTemplate: "--dangerously-skip-permissions -p {prompt}",
   // },
 ];
 
