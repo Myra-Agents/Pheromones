@@ -49,6 +49,10 @@ export interface KanbanCard {
   agentFlags?: string[];
   /** Per-card worktree override (falls back to the preset's `useWorktree`). */
   useWorktree?: boolean;
+  /** Per-card launch-mode override (falls back to the preset's `launchVia`). */
+  launchVia?: "direct" | "ollama";
+  /** Per-card local Ollama model (used when `launchVia === "ollama"`). */
+  ollamaModel?: string;
 
   // Agent runtime state
   agentRunId?: string;
