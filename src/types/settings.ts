@@ -32,6 +32,12 @@ export interface AgentPreset {
    * `--model` flag because it is `ollama launch`'s argument, not the harness's.
    */
   ollamaModel?: string;
+  /**
+   * ISO timestamp of the last time this preset passed its connectivity test
+   * (`test_agent`). Persisted in settings so the "tested" state survives reloads
+   * and is shared across the UIs that surface it (Settings, the schedule modal).
+   */
+  lastTestedAt?: string;
 }
 
 /**
