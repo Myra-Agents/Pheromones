@@ -81,6 +81,8 @@ export interface CreateCardInput {
   workingDir?: string;
   agentFlags?: string[];
   useWorktree?: boolean;
+  launchVia?: "direct" | "ollama";
+  ollamaModel?: string;
 }
 
 export interface UpdateCardInput {
@@ -93,6 +95,8 @@ export interface UpdateCardInput {
   workingDir?: string;
   agentFlags?: string[];
   useWorktree?: boolean;
+  launchVia?: "direct" | "ollama";
+  ollamaModel?: string;
 }
 
 export interface CardFormData {
@@ -104,6 +108,8 @@ export interface CardFormData {
   workingDir?: string;
   agentFlags?: string[];
   useWorktree?: boolean;
+  launchVia?: "direct" | "ollama";
+  ollamaModel?: string;
 }
 
 /** Result of a launch_agent invocation. */
