@@ -37,6 +37,8 @@ export interface InstanceInfo {
   label: string;
   capabilities: Capability[];
   status: "online";
+  /** Server build version the instance reported in its {@link HelloFrame}, if known. */
+  version?: string;
 }
 
 // --- Instance ↔ hub reverse-tunnel frames -----------------------------------
@@ -47,6 +49,8 @@ export interface HelloFrame {
   instanceId: string;
   label: string;
   capabilities: Capability[];
+  /** Server build version (`CARGO_PKG_VERSION`), so the dashboard can flag stale instances. */
+  version?: string;
 }
 
 /** A command forwarded down from a dashboard, awaiting an {@link RpcResultFrame}. */
@@ -170,4 +174,62 @@ export const AUTH_ROUTES = {
   desktopHandoff: "/auth/desktop-handoff",
   desktopClaim: "/auth/desktop-claim",
   me: "/auth/me",
+} as const;
+
+// ── E2E-encrypted sync (Phase 2) ──────────────────────────────────────
+//
+// The desktop app is the crypto boundary; the hub is a **dumb relay** that only
+// ever sees ciphertext + public keys. These shapes are the wire contract for the
+// per-user sync endpoints — never plaintext, never the vault key.
+
+/** A device enrolled in sync. Only public material — safe for the hub to store. */
+export interface SyncDevice {
+  deviceId: string;
+  /** base64 X25519 public key. */
+  pubkey: string;
+  label: string;
+  addedAt: number;
+}
+
+/**
+ * `recipient → base64(sealed vault key)`. Recipient is a `deviceId` or the
+ * literal `"recovery"` (a one-time recovery code's derived key). Ciphertext only.
+ */
+export type WrappedKeys = Record<string, string>;
+
+/** One encrypted delta queued for a device. `ciphertext` is vault-encrypted. */
+export interface SyncDelta {
+  seq: number;
+  /** base64 vault-encrypted payload (the instance set). */
+  ciphertext: string;
+  ts: number;
+  /** Origin device id — receivers skip a delta they authored. */
+  from: string;
+}
+
+/** `POST /api/sync/push` body: a delta to fan to every *other* device's queue. */
+export interface SyncPushBody {
+  from: string;
+  ciphertext: string;
+}
+
+/** `GET /api/sync/pull` response: this device's queued deltas (oldest first). */
+export interface SyncPullResult {
+  deltas: SyncDelta[];
+  /** True when the queue was coalesced to a single current-state snapshot. */
+  coalesced?: boolean;
+}
+
+/** Per-user E2E sync routes (Worker → per-user Durable Object). */
+export const SYNC_ROUTES = {
+  /** GET list devices · POST register/update this device · (revoke is nested). */
+  devices: "/api/sync/devices",
+  /** GET the wrapped-keys map · PUT replace it (on setup + rotation). */
+  wrapped: "/api/sync/wrapped",
+  /** POST a delta → fans to every other device's ephemeral queue. */
+  push: "/api/sync/push",
+  /** GET drain this device's queue. */
+  pull: "/api/sync/pull",
+  /** POST ack seqs → hub purges them. */
+  ack: "/api/sync/ack",
 } as const;

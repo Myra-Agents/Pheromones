@@ -14,7 +14,12 @@ export interface AgentRun {
   endedAt?: string;
   prompt: string;
   result?: string;
-  status: "running" | "needs_feedback" | "awaiting_review" | "failed" | "completed";
+  status:
+    | "running"
+    | "needs_feedback"
+    | "awaiting_review"
+    | "failed"
+    | "completed";
   exitCode?: number;
   /** Tokens used, if the agent reported it via the result protocol. */
   tokens?: number;
@@ -40,6 +45,14 @@ export interface KanbanCard {
   agentPresetId?: string;
   /** Per-card working directory for the agent run (overrides the preset's). */
   workingDir?: string;
+  /** Per-card CLI flag overrides (replaces the preset's `flags` when set). */
+  agentFlags?: string[];
+  /** Per-card worktree override (falls back to the preset's `useWorktree`). */
+  useWorktree?: boolean;
+  /** Per-card launch-mode override (falls back to the preset's `launchVia`). */
+  launchVia?: "direct" | "ollama";
+  /** Per-card local Ollama model (used when `launchVia === "ollama"`). */
+  ollamaModel?: string;
 
   // Agent runtime state
   agentRunId?: string;
@@ -66,6 +79,10 @@ export interface CreateCardInput {
   tags: string[];
   agentPresetId?: string;
   workingDir?: string;
+  agentFlags?: string[];
+  useWorktree?: boolean;
+  launchVia?: "direct" | "ollama";
+  ollamaModel?: string;
 }
 
 export interface UpdateCardInput {
@@ -76,6 +93,10 @@ export interface UpdateCardInput {
   tags: string[];
   agentPresetId?: string;
   workingDir?: string;
+  agentFlags?: string[];
+  useWorktree?: boolean;
+  launchVia?: "direct" | "ollama";
+  ollamaModel?: string;
 }
 
 export interface CardFormData {
@@ -85,6 +106,10 @@ export interface CardFormData {
   tags: string; // comma-separated
   agentPresetId?: string;
   workingDir?: string;
+  agentFlags?: string[];
+  useWorktree?: boolean;
+  launchVia?: "direct" | "ollama";
+  ollamaModel?: string;
 }
 
 /** Result of a launch_agent invocation. */
@@ -132,13 +157,16 @@ export const COLUMN_STATUSES: KanbanStatus[] = [
 /** All statuses (including trashed, which lives in the bottom strip) */
 export const STATUSES: KanbanStatus[] = [...COLUMN_STATUSES, "trashed"];
 
-/** Statuses selectable when creating a new card via the modal */
+/** Statuses selectable when creating a new task via the modal */
 export const CREATABLE_STATUSES: KanbanStatus[] = ["draft", "todo"];
 
 /**
  * Lifecycle rules. Returns true if the transition is allowed via drag-and-drop.
  */
-export function isTransitionAllowed(from: KanbanStatus, to: KanbanStatus): boolean {
+export function isTransitionAllowed(
+  from: KanbanStatus,
+  to: KanbanStatus,
+): boolean {
   if (from === to) return false;
   if (to === "trashed") return true;
   if (from === "trashed") return true;

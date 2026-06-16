@@ -20,6 +20,7 @@ export const DATA_COMMANDS = [
   "import_cards",
   "get_settings",
   "save_settings",
+  "list_plugins",
   "list_schedules",
   "create_schedule",
   "update_schedule",
