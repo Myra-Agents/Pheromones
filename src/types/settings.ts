@@ -512,6 +512,19 @@ export interface PluginInfo {
   /** Webhooks the core runs for this plugin. */
   webhooks: WebhookSpec[];
   enabled: boolean;
+  /**
+   * False when the plugin needs a newer plugin protocol than this core build
+   * implements — its agents/webhooks/exec are not run. Omitted by older server
+   * binaries; treat absence as compatible (check `=== false`, not `!`).
+   */
+  compatible: boolean;
+  /** Human-readable reason shown when {@link compatible} is false. */
+  incompatibleReason?: string;
+  /**
+   * The plugin's declared protocol requirement (a semver range), if any.
+   * Distinct from {@link version} — that is the plugin's own release.
+   */
+  minProtocol?: string;
 }
 
 export const DEFAULT_AGENT_PRESETS: AgentPreset[] = [
