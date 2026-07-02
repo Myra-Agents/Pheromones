@@ -101,12 +101,33 @@ export interface AgentCommandLine {
   args: string[];
 }
 
+/** Extra launch inputs that mirror the Rust `build_agent_command` parameters. */
+export interface AgentCommandOptions {
+  /** Preset flag tokens (e.g. `--share`, `--model=anthropic/claude`). */
+  flags?: string[];
+  /** `"ollama"` wraps the invocation in `ollama launch`; anything else runs direct. */
+  launchVia?: string | null;
+  /** Local model name required when `launchVia === "ollama"`. */
+  ollamaModel?: string | null;
+}
+
 /**
  * Build the `{ binary, args }` to spawn from a preset's `binary` +
  * `argsTemplate` and the rendered prompt. The template must contain
  * `{prompt}` (validated, mirroring the Rust check).
+ *
+ * `options` ports the rest of the Rust `build_agent_command`: it appends the
+ * preset `flags` (skipping empties, value-less `--flag=`, and names already in
+ * the template) and, when `launchVia === "ollama"`, wraps the whole invocation
+ * in `ollama launch <binary> --yes --model <ollamaModel> -- …`, dropping any
+ * cloud `--model`/`--variant` so they don't fight the local model.
  */
-export function buildAgentCommand(binary: string, argsTemplate: string, prompt: string): AgentCommandLine {
+export function buildAgentCommand(
+  binary: string,
+  argsTemplate: string,
+  prompt: string,
+  options: AgentCommandOptions = {},
+): AgentCommandLine {
   const trimmed = binary.trim();
   if (trimmed.length === 0) {
     throw new Error("Agent binary cannot be empty");
@@ -117,5 +138,32 @@ export function buildAgentCommand(binary: string, argsTemplate: string, prompt: 
 
   const rendered = argsTemplate.split("{prompt}").join(quoteArg(prompt));
   const args = splitCommandLine(rendered);
+
+  const flagName = (flag: string) => flag.split("=")[0] ?? flag;
+  for (const raw of options.flags ?? []) {
+    const flag = raw.trim();
+    // Skip empties and value-taking flags whose value was never filled in.
+    if (flag.length === 0 || flag.endsWith("=")) continue;
+    const name = flagName(flag);
+    const already = args.some((a) => a === flag || a === name || a.startsWith(`${name}=`));
+    if (!already) args.push(flag);
+  }
+
+  // Local-model mode: hand the whole invocation to `ollama launch`, mirroring
+  // the Rust runner. Our rendered args ride through unchanged after `--`.
+  if (options.launchVia === "ollama") {
+    const model = (options.ollamaModel ?? "").trim();
+    if (model.length === 0) {
+      throw new Error(`Preset \`${trimmed}\` runs local models but no Ollama model is selected`);
+    }
+    const launchArgs = ["launch", trimmed, "--yes", "--model", model, "--"];
+    // `ollama launch` owns model selection; drop any cloud `--model`/`--variant`.
+    for (const arg of args) {
+      const name = flagName(arg);
+      if (name !== "--model" && name !== "--variant") launchArgs.push(arg);
+    }
+    return { binary: "ollama", args: launchArgs };
+  }
+
   return { binary: trimmed, args };
 }
