@@ -8,6 +8,8 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-07-02
+
 ### Added
 
 - **`buildAgentCommand` options** — the TS builder now takes an `AgentCommandOptions` argument (`flags`, `launchVia`, `ollamaModel`), mirroring the Rust `build_agent_command`: it appends preset flags (skipping empties, value-less `--flag=`, and names already in the template) and, when `launchVia === "ollama"`, wraps the invocation in `ollama launch … --` (dropping cloud `--model`/`--variant`).
