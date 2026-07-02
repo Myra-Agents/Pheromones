@@ -68,6 +68,13 @@ export interface KanbanCard {
   // Trash (soft-delete) state
   deletedAt?: string;
   previousStatus?: KanbanStatus;
+  /**
+   * Set when the nightly auto-archive moved this Done card to Trash (at local
+   * midnight) instead of a manual delete. Drives the archive icon and lets
+   * History/UIs distinguish an archived card from a deleted one. Absent →
+   * manually trashed or still live.
+   */
+  archivedAt?: string;
 }
 
 export interface CreateCardInput {

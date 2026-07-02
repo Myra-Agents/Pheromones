@@ -7,7 +7,6 @@ export interface AgentPreset {
   name: string;
   binary: string;
   argsTemplate: string;
-  workingDir?: string;
   /**
    * Extra CLI flags appended after the rendered argsTemplate. Boolean flags
    * are stored as-is (`"--share"`), value-taking flags as `"--model=provider/model"`.
@@ -45,7 +44,7 @@ export interface AgentPreset {
  * `AgentPreset.binary` must be one of these for `launchVia: "ollama"` to work.
  * Mirrors Ollama's `cmd/launch/*` integrations (docs.ollama.com/integrations).
  */
-export const OLLAMA_LAUNCH_HARNESSES = ["opencode", "claude", "codex"] as const;
+export const OLLAMA_LAUNCH_HARNESSES = ["opencode"] as const;
 export type OllamaLaunchHarness = (typeof OLLAMA_LAUNCH_HARNESSES)[number];
 
 /** Minimum Ollama version that ships `ollama launch` (local-model harness wiring). */
@@ -228,22 +227,6 @@ export const AGENT_INSTALL_INFO: Record<string, AgentInstallInfo> = {
       { id: "bun", label: "Bun", command: "bun install -g opencode-ai" },
     ],
   },
-  claude: {
-    docsUrl: "https://code.claude.com/docs/en/quickstart",
-    installScript: "curl -fsSL https://claude.ai/install.sh | bash",
-    methods: [
-      { id: "curl", label: "Install script", command: "curl -fsSL https://claude.ai/install.sh | bash" },
-      { id: "npm", label: "npm", command: "npm install -g @anthropic-ai/claude-code" },
-    ],
-  },
-  codex: {
-    docsUrl: "https://developers.openai.com/codex/cli",
-    installScript: "npm install -g @openai/codex",
-    methods: [
-      { id: "npm", label: "npm", command: "npm install -g @openai/codex" },
-      { id: "brew", label: "Homebrew", command: "brew install codex" },
-    ],
-  },
 };
 
 /**
@@ -406,6 +389,12 @@ export interface AppSettings {
   locale: "auto" | "en" | "fr";
   theme: "light" | "dark" | "system";
   /**
+   * IANA timezone (e.g. `"Europe/Paris"`) for time-of-day automation — notably
+   * the nightly Done → archive at local midnight (server scheduler). Omitted in
+   * older settings → `"Europe/Paris"`.
+   */
+  timezone?: string;
+  /**
    * Folder names of installed plugins the user has switched off. A disabled
    * plugin contributes no agent presets (and, once the server dispatches bus
    * events to plugins, receives none). Omitted/empty = all enabled.
@@ -522,26 +511,6 @@ export const DEFAULT_AGENT_PRESETS: AgentPreset[] = [
     argsTemplate: "run {prompt}",
     flags: ["--dangerously-skip-permissions"],
   },
-  // {
-  //   id: "claude",
-  //   name: "Claude Code",
-  //   binary: "claude",
-  //   argsTemplate: "-p {prompt}",
-  //   flags: ["--dangerously-skip-permissions"],
-  // },
-  // {
-  //   id: "codex",
-  //   name: "Codex",
-  //   binary: "codex",
-  //   argsTemplate: "exec {prompt}",
-  //   flags: ["--full-auto"],
-  // },
-  // {
-  //   id: "copilot",
-  //   name: "GitHub Copilot CLI",
-  //   binary: "copilot",
-  //   argsTemplate: "-p {prompt} --yolo",
-  // },
 ];
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -554,6 +523,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   defaultHomePage: "kanban",
   locale: "auto",
   theme: "system",
+  timezone: "Europe/Paris",
   disabledPlugins: [],
   pluginConfig: {},
 };

@@ -27,6 +27,7 @@ export const DATA_COMMANDS = [
   "delete_schedule",
   "toggle_schedule_enabled",
   "purge_schedule_history",
+  "clear_run_history",
   "clear_logs",
 ] as const;
 

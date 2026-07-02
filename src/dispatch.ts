@@ -2,6 +2,7 @@ import {
   addCard,
   addRevisionNote,
   answerFeedback,
+  clearRunHistory,
   deleteCard,
   getCards,
   importCards,
@@ -145,6 +146,8 @@ export async function dispatchData<T>(store: Store, cmd: string, args?: Record<s
       }
       case "purge_schedule_history":
         return purgeScheduleHistory(store, requireString("purge_schedule_history", args, "id"));
+      case "clear_run_history":
+        return clearRunHistory(store);
       case "clear_logs":
         return true;
       default:

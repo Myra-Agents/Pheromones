@@ -173,6 +173,18 @@ export async function importCards(store: Store, cards: KanbanCard[]): Promise<bo
   return true;
 }
 
+export async function clearRunHistory(store: Store): Promise<number> {
+  const cards = await store.getCards();
+  let count = 0;
+  const next = cards.map((card) => {
+    const n = card.runHistory?.length ?? 0;
+    count += n;
+    return n > 0 ? { ...card, runHistory: [] } : card;
+  });
+  await store.saveCards(next);
+  return count;
+}
+
 export async function purgeScheduleHistory(store: Store, linkedTaskId: string): Promise<number> {
   const cards = await store.getCards();
   const next = cards.filter(

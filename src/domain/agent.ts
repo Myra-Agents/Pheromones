@@ -10,8 +10,6 @@ import type { AgentRun, KanbanCard } from "../types/kanban";
 import type { ScheduledTask } from "../types/schedule";
 import { newId } from "./ids";
 
-const SCHEDULED_TAG = "⏱ scheduled";
-
 /**
  * Build the agent prompt: revision notes prepended (most recent first), the
  * original task, then the JSON result-protocol footer that tells the agent
@@ -136,9 +134,6 @@ export function applyResult(card: KanbanCard, parsed: AgentResultFile, now: stri
  */
 export function materializeCardForSchedule(task: ScheduledTask, now: string, position = 0): KanbanCard {
   const tags = [...task.tags];
-  if (!tags.includes(SCHEDULED_TAG)) {
-    tags.push(SCHEDULED_TAG);
-  }
 
   return {
     id: newId(),
