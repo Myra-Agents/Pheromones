@@ -64,6 +64,13 @@ export interface KanbanCard {
   agentRunEndedAt?: string;
   revisionNotes?: string[];
   runHistory?: AgentRun[];
+  /**
+   * Harness conversation/session id captured from the last run (opencode emits
+   * it in its `--format json` stream). Lets a reply resume that *exact* session
+   * (`opencode -s <id>`) instead of the blind "continue the last session" flag.
+   * Written by the server; absent until the first run reports one.
+   */
+  agentSessionId?: string;
 
   // Trash (soft-delete) state
   deletedAt?: string;

@@ -504,19 +504,6 @@ export interface PluginInfo {
 }
 
 export const DEFAULT_AGENT_PRESETS: AgentPreset[] = [
-  // Built-in embedded harness — ships inside the app (no install, no API key),
-  // routed through the hub's LLM proxy. Pre-selected so a fresh install runs
-  // out of the box. Mirrors `default_agent_presets()` in the Rust server.
-  {
-    id: "myra-embedded",
-    name: "Myra (built-in)",
-    binary: "myra-embedded",
-    // The worker spawns this directly and feeds the task on stdin; {prompt}
-    // only satisfies the preset-validation contract.
-    argsTemplate: "{prompt}",
-    flags: [],
-    useWorktree: false,
-  },
   {
     id: "opencode",
     name: "OpenCode",
@@ -527,7 +514,7 @@ export const DEFAULT_AGENT_PRESETS: AgentPreset[] = [
 ];
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  defaultAgentId: "myra-embedded",
+  defaultAgentId: "opencode",
   agents: DEFAULT_AGENT_PRESETS,
   maxConcurrentAgents: 2,
   keepAwakeWhileRunning: true,
