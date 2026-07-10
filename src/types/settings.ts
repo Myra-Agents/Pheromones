@@ -360,9 +360,31 @@ export const OLLAMA_MODEL_CATALOG: OllamaCatalogModel[] = [
   },
 ];
 
+/**
+ * LLM configuration for the embedded "Myra" agent. The harness talks to a single
+ * OpenAI-compatible endpoint (the hub, or OpenRouter directly for BYOK). The
+ * endpoint is resolved server-side (hub when enrolled, else OpenRouter), so the
+ * UI only exposes the credential + model.
+ */
+export interface EmbeddedLlmConfig {
+  /**
+   * BYOK credential sent as the OpenAI apiKey (e.g. an OpenRouter `sk-or-…` key).
+   * When empty, the server falls back to the hub enrollment credential. Stored in
+   * settings.json — treat as a secret.
+   */
+  apiKey?: string;
+  /**
+   * Model id, or `"auto"` / empty to let the hub's cascade pick a free model.
+   * A concrete id is required when pointing straight at OpenRouter (no cascade).
+   */
+  model?: string;
+}
+
 export interface AppSettings {
   defaultAgentId: string;
   agents: AgentPreset[];
+  /** LLM config for the embedded "Myra" agent (BYOK key + model). */
+  embeddedLlm?: EmbeddedLlmConfig;
   /** Maximum agents allowed to run concurrently. 0 = unlimited. */
   maxConcurrentAgents: number;
   /**
