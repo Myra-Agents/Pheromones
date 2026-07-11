@@ -11,6 +11,17 @@ export type ScheduleKind =
   | { type: "interval"; start: string; minutes: number }
   | { type: "cron"; expr: string };
 
+/**
+ * A post-run action bound to a patrol/card: run the named connector's action
+ * `type` with `config` (templated against the finished card — {{result}},
+ * {{title}}, …) once it reaches Done. Mirror of the Rust `TaskAction`.
+ */
+export interface TaskAction {
+  connector: string;
+  type: string;
+  config: Record<string, unknown>;
+}
+
 export interface ScheduledTask {
   id: string;
   name: string;
@@ -35,6 +46,8 @@ export interface ScheduledTask {
   launchVia?: "direct" | "ollama";
   /** Local Ollama model for the run (used when `launchVia === "ollama"`). */
   ollamaModel?: string;
+  /** Post-run actions inherited by every card this patrol materializes. */
+  actions?: TaskAction[];
 
   createdAt: string;
   lastTriggeredAt?: string;
@@ -55,6 +68,7 @@ export interface CreateScheduleInput {
   workingDir?: string;
   launchVia?: "direct" | "ollama";
   ollamaModel?: string;
+  actions?: TaskAction[];
 }
 
 export interface UpdateScheduleInput extends CreateScheduleInput {
