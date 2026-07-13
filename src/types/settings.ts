@@ -366,16 +366,31 @@ export const OLLAMA_MODEL_CATALOG: OllamaCatalogModel[] = [
  * endpoint is resolved server-side (hub when enrolled, else OpenRouter), so the
  * UI only exposes the credential + model.
  */
+/**
+ * Where the embedded "Myra" agent's LLM runs.
+ * - `"cloud"` (default, absent): the server-resolved endpoint — the hub when
+ *   enrolled, else OpenRouter for a BYOK {@link EmbeddedLlmConfig.apiKey}.
+ * - `"ollama"`: a **local** Ollama daemon (OpenAI-compatible endpoint). No
+ *   credential is needed; {@link EmbeddedLlmConfig.model} is the Ollama tag.
+ */
+export type EmbeddedLlmProvider = "cloud" | "ollama";
+
 export interface EmbeddedLlmConfig {
+  /**
+   * Which backend serves the embedded agent. Absent → `"cloud"`.
+   */
+  provider?: EmbeddedLlmProvider;
   /**
    * BYOK credential sent as the OpenAI apiKey (e.g. an OpenRouter `sk-or-…` key).
    * When empty, the server falls back to the hub enrollment credential. Stored in
-   * settings.json — treat as a secret.
+   * settings.json — treat as a secret. Ignored when `provider === "ollama"`.
    */
   apiKey?: string;
   /**
-   * Model id, or `"auto"` / empty to let the hub's cascade pick a free model.
-   * A concrete id is required when pointing straight at OpenRouter (no cascade).
+   * Model id. For `provider: "cloud"`, an OpenRouter model id or `"auto"`/empty
+   * to let the hub's cascade pick a free model (a concrete id is required when
+   * pointing straight at OpenRouter). For `provider: "ollama"`, the local Ollama
+   * model tag (e.g. `"qwen2.5-coder"`) — required, there is no cascade.
    */
   model?: string;
 }
