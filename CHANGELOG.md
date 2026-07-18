@@ -8,6 +8,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/en/1.1.0/). Versions follo
 
 ## [Unreleased]
 
+## [0.7.0] — 2026-07-18
+
+### Added
+
+- **Embedded harness wire contract** (`harness.ts`) — the `HarnessEvent`/`HarnessControl` types shared between the worker and the embedded (Antenna) agent binary.
+- **`AppSettings.embeddedLlm`** — `cloud | ollama` provider selection for the embedded Myra agent, so a card can run against a local Ollama model instead of the cloud harness.
+- **`KanbanCard` `"canceled"` status** — a distinct `AgentRun` status separate from `"failed"`, so a user-initiated stop is no longer reported as a failure.
+- **`humanizeAgentError`** — turns raw agent failure output into a plain-text summary for the UI.
+
 ## [0.6.0] — 2026-07-09
 
 ### Added
