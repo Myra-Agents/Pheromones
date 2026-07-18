@@ -19,6 +19,11 @@ export interface AgentRun {
     | "needs_feedback"
     | "awaiting_review"
     | "failed"
+    // A deliberate stop (user cancel), distinct from a genuine failure. Both
+    // used to collapse onto "failed" and get told apart on the app side by a
+    // card-state heuristic — which broke once a real failure could also land
+    // the card in Done. The server now sets this explicitly.
+    | "canceled"
     | "completed";
   exitCode?: number;
   /** Tokens used, if the agent reported it via the result protocol. */

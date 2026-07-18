@@ -52,6 +52,61 @@ After writing the file, you may exit. Myra Agents is watching this path.`,
   return parts.join("\n");
 }
 
+/**
+ * Rewrite a raw agent/harness failure into a message a non-technical user can
+ * act on. The embedded harness surfaces provider errors verbatim (LangChain
+ * `MODEL_AUTHENTICATION`, raw HTTP 401/402/429, model 404) which mean nothing to
+ * someone staring at a failed card. Map the common ones to plain, actionable
+ * text; pass anything unrecognized through unchanged. The raw string is still in
+ * `agent-runs/{runId}.log` for debugging. Kept in sync with the Rust twin
+ * `runner.rs::humanize_agent_error`.
+ */
+export function humanizeAgentError(raw: string): string {
+  const low = raw.toLowerCase();
+
+  // Rate limit / free-tier saturation.
+  if (
+    low.includes("429") ||
+    low.includes("rate limit") ||
+    low.includes("rate-limit") ||
+    low.includes("too many requests")
+  ) {
+    return "The AI model is busy right now (rate-limited — common on free tiers). Wait a moment and rerun, or pick another model / add your own API key in Settings → Agents.";
+  }
+
+  // Out of credit / quota.
+  if (
+    low.includes("402") ||
+    low.includes("payment required") ||
+    low.includes("insufficient") ||
+    low.includes("quota") ||
+    low.includes("out of credit") ||
+    low.includes("credits")
+  ) {
+    return "Your AI provider account has run out of credit or quota. Top it up, or switch model / provider in Settings → Agents.";
+  }
+
+  // Invalid / missing credential.
+  if (
+    low.includes("user not found") ||
+    low.includes("model_authentication") ||
+    low.includes("no auth credentials") ||
+    low.includes("invalid api key") ||
+    low.includes("invalid_api_key") ||
+    low.includes("unauthorized") ||
+    low.includes("401")
+  ) {
+    return "Myra's AI credential is invalid or expired. Open Settings → Agents and re-enter a valid API key (or connect a hub).";
+  }
+
+  // Selected model unavailable.
+  if (low.includes("model") && (low.includes("404") || low.includes("not found") || low.includes("does not exist"))) {
+    return "The selected AI model isn't available. Choose a different model in Settings → Agents.";
+  }
+
+  return raw;
+}
+
 /** Shape of the JSON file an agent writes to `agent-results/{cardId}.json`. */
 export interface AgentResultFile {
   cardId: string;
@@ -111,12 +166,14 @@ export function applyResult(card: KanbanCard, parsed: AgentResultFile, now: stri
       next.agentQuestion = parsed.question;
       next.agentResult = parsed.result;
       break;
-    case "failed":
+    case "failed": {
       // Park back in Todo with the error surfaced as the result.
       next.status = "todo";
-      next.agentResult = parsed.error ?? parsed.result;
+      const rawError = parsed.error ?? parsed.result;
+      next.agentResult = rawError ? humanizeAgentError(rawError) : rawError;
       next.agentQuestion = undefined;
       break;
+    }
     default:
       next.status = "awaiting_review";
       next.agentResult = parsed.result;
