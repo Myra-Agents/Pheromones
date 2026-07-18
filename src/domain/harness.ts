@@ -9,6 +9,7 @@
 
 import type { HarnessEvent } from "../harness";
 import type { TranscriptEntry } from "../types/conversation";
+import { humanizeAgentError } from "./agent";
 
 /**
  * Map one HarnessEvent to a TranscriptEntry, or `null` when the event has no
@@ -29,14 +30,19 @@ export function harnessEventToEntry(ev: HarnessEvent): TranscriptEntry | null {
         content: ev.content,
         isError: ev.isError,
       };
-    case "result":
+    case "result": {
+      const failed = ev.status === "failed";
+      const raw = ev.summary ?? ev.question ?? ev.error ?? "";
       return {
         kind: "result",
-        summary: ev.summary ?? ev.question ?? ev.error ?? "",
+        // On failure the raw text is a provider error (401/429/…) — rewrite it to
+        // something a user can act on; success summaries pass through unchanged.
+        summary: failed ? humanizeAgentError(raw) : raw,
         tokens: ev.tokens,
         cost: ev.cost,
-        isError: ev.status === "failed",
+        isError: failed,
       };
+    }
     case "todos":
       return null; // rendered by a dedicated checklist widget, not the transcript
   }
