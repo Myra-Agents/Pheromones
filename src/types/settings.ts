@@ -493,7 +493,8 @@ export interface PluginConfigField {
 
 /** Named signature scheme verified by the core for an inbound webhook. */
 export interface WebhookVerify {
-  scheme: "hmac-sha256" | "slack" | "stripe";
+  /** `gitlab` is a plain constant-time compare against `X-Gitlab-Token` (GitLab has no HMAC signature). */
+  scheme: "hmac-sha256" | "slack" | "stripe" | "gitlab";
   /** Header carrying the signature (e.g. X-Hub-Signature-256). */
   header?: string;
   /** Config key whose value is the shared signing secret. */
@@ -520,6 +521,39 @@ export interface WebhookSpec {
   exec?: string;
 }
 
+/** One capability a connector plugin offers post-run, surfaced in the patrol editor's Actions picker. */
+export interface PluginCatalogAction {
+  /** Action type, dispatched to the connector's `actions[id]` handler via `runAction`. */
+  id: string;
+  label: string;
+  summary?: string;
+  /** Rendered as a form; values may template the run result (`{{result}}` `{{title}}` `{{card.*}}`). */
+  config: PluginConfigField[];
+}
+
+/** An in-app "Connect" step (e.g. OAuth consent) run via the `run_plugin_setup` rpc. */
+export interface PluginCatalogSetup {
+  /** Informational — both run the same way (spawn `command`). */
+  type: "oauth" | "cli";
+  /** Shell-split argv, e.g. "node connect.mjs". Spawned with cwd = the plugin dir, env = the instance's resolved config. */
+  command: string;
+  /** Button label, e.g. "Connect GitLab". */
+  label: string;
+}
+
+/** Display metadata for the in-app catalog and the trigger/actions pickers — opaque passthrough from the manifest. */
+export interface PluginCatalog {
+  name?: string;
+  icon?: string;
+  description?: string;
+  author?: string;
+  /** `"trigger"` = surfaces in the Add-Trigger picker; `"action"`/`"notify"` = surfaces in the Actions picker. */
+  verbs?: ("trigger" | "action" | "notify" | "receive" | "agent")[];
+  trigger?: { summary?: string };
+  actions?: PluginCatalogAction[];
+  setup?: PluginCatalogSetup;
+}
+
 /**
  * An installed plugin as surfaced by the `list_plugins` rpc. `name` is the
  * install identity — the plugin's folder name under `~/.myra-agents/plugins/`,
@@ -537,6 +571,9 @@ export interface PluginInfo {
   config: PluginConfigField[];
   /** Webhooks the core runs for this plugin. */
   webhooks: WebhookSpec[];
+  /** Executable for the patrol-actions role (`catalog.actions`) — see PROTOCOL.md's "Role 4". */
+  runAction?: string;
+  catalog?: PluginCatalog;
   enabled: boolean;
 }
 

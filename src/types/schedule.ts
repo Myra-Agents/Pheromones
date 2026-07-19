@@ -11,6 +11,45 @@ export type ScheduleKind =
   | { type: "interval"; start: string; minutes: number }
   | { type: "cron"; expr: string };
 
+/**
+ * A connector-event trigger, alternative to the time-based {@link ScheduleKind}.
+ * When set, the task ignores `schedule`/`nextRunAt` and instead fires when the
+ * named connector (a plugin under `~/.myra-agents/plugins/<connector>/`) reports
+ * an event whose fields match one of `rules`. First matching rule wins.
+ */
+export interface EventTrigger {
+  connector: string;
+  rules: ConnectorRule[];
+}
+
+/**
+ * Same shape every connector's rule matching already uses (see
+ * `plugins/connectors/_sdk/rules.mjs`) — from/subjectContains/bodyContains/regex
+ * matched against the connector's normalized event fields.
+ */
+export interface ConnectorRule {
+  name?: string;
+  from?: string;
+  subjectContains?: string;
+  bodyContains?: string;
+  regex?: string;
+  regexField?: string;
+  agentId?: string;
+  prompt?: string;
+  requireReview?: boolean;
+}
+
+/**
+ * A post-run side effect dispatched to a connector once this task's card
+ * finishes (status → done). `config` values may template the run output:
+ * `{{result}}`, `{{title}}`, `{{status}}`, `{{card.*}}`.
+ */
+export interface Action {
+  connector: string;
+  type: string;
+  config: Record<string, unknown>;
+}
+
 export interface ScheduledTask {
   id: string;
   name: string;
@@ -19,6 +58,10 @@ export interface ScheduledTask {
   agentPrompt: string;
   tags: string[];
   schedule: ScheduleKind;
+  /** Connector-event trigger. When set, this task ignores `schedule`/`nextRunAt`. */
+  eventTrigger?: EventTrigger;
+  /** Post-run side effects dispatched to connectors when this task's card finishes. */
+  actions?: Action[];
   enabled: boolean;
 
   // Agent run config inherited by every card this schedule materializes. When
@@ -48,6 +91,8 @@ export interface CreateScheduleInput {
   agentPrompt: string;
   tags: string[];
   schedule: ScheduleKind;
+  eventTrigger?: EventTrigger;
+  actions?: Action[];
   enabled: boolean;
   agentPresetId?: string;
   agentFlags?: string[];
