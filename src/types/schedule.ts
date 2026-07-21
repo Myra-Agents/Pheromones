@@ -64,11 +64,16 @@ export interface ScheduledTask {
   cardDescription: string;
   agentPrompt: string;
   tags: string[];
-  schedule: ScheduleKind;
+  /**
+   * Time-based trigger. Optional and **independent** of {@link eventTriggers}: a
+   * patrol may run on a schedule, on connector events, or both. Absent = no
+   * time-based trigger (`nextRunAt` stays unset).
+   */
+  schedule?: ScheduleKind;
   /**
    * Connector-event triggers. A patrol fires on **any** of these (e.g. a GitLab
-   * merge request on project A *and* an issue on project B). When non-empty the
-   * task is event-driven and ignores `schedule`/`nextRunAt`.
+   * merge request on project A *and* an issue on project B), independently of
+   * {@link schedule} — both can be set at once.
    */
   eventTriggers?: EventTrigger[];
   /** Post-run side effects dispatched to connectors when this task's card finishes. */
@@ -101,7 +106,8 @@ export interface CreateScheduleInput {
   cardDescription: string;
   agentPrompt: string;
   tags: string[];
-  schedule: ScheduleKind;
+  /** Optional time-based trigger — independent of {@link CreateScheduleInput.eventTriggers}. */
+  schedule?: ScheduleKind;
   eventTriggers?: EventTrigger[];
   actions?: Action[];
   enabled: boolean;
@@ -123,7 +129,8 @@ export interface UpdateScheduleInput extends CreateScheduleInput {
 
 const WEEKDAYS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function describeSchedule(kind: ScheduleKind): string {
+export function describeSchedule(kind: ScheduleKind | undefined): string {
+  if (!kind) return "";
   switch (kind.type) {
     case "once": {
       try {
