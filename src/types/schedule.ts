@@ -65,8 +65,12 @@ export interface ScheduledTask {
   agentPrompt: string;
   tags: string[];
   schedule: ScheduleKind;
-  /** Connector-event trigger. When set, this task ignores `schedule`/`nextRunAt`. */
-  eventTrigger?: EventTrigger;
+  /**
+   * Connector-event triggers. A patrol fires on **any** of these (e.g. a GitLab
+   * merge request on project A *and* an issue on project B). When non-empty the
+   * task is event-driven and ignores `schedule`/`nextRunAt`.
+   */
+  eventTriggers?: EventTrigger[];
   /** Post-run side effects dispatched to connectors when this task's card finishes. */
   actions?: Action[];
   enabled: boolean;
@@ -98,7 +102,7 @@ export interface CreateScheduleInput {
   agentPrompt: string;
   tags: string[];
   schedule: ScheduleKind;
-  eventTrigger?: EventTrigger;
+  eventTriggers?: EventTrigger[];
   actions?: Action[];
   enabled: boolean;
   agentPresetId?: string;
