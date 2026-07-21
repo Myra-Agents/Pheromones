@@ -576,8 +576,16 @@ export interface PluginCatalog {
   author?: string;
   /** `"trigger"` = surfaces in the Add-Trigger picker; `"action"`/`"notify"` = surfaces in the Actions picker. */
   verbs?: ("trigger" | "action" | "notify" | "receive" | "agent")[];
-  /** `config` = connector-specific trigger settings rendered in the patrol editor's trigger row. */
-  trigger?: { summary?: string; config?: PluginConfigField[] };
+  /**
+   * `config` = connector-specific trigger settings rendered in the patrol editor's trigger row.
+   * `ruleOptions` turns a generic rule field (e.g. `from`) into a dynamic dropdown fed by the
+   * connector's `optionsExec` — keyed by rule field, naming the options field + its context deps.
+   */
+  trigger?: {
+    summary?: string;
+    config?: PluginConfigField[];
+    ruleOptions?: Record<string, { optionsField: string; dependsOn?: string[] }>;
+  };
   actions?: PluginCatalogAction[];
   setup?: PluginCatalogSetup;
   /** Auth methods, rendered as tabs in the connect wizard. */
