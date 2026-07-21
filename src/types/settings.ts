@@ -485,6 +485,13 @@ export interface PluginConfigField {
   type: "string" | "secret" | "boolean" | "number" | "select" | "multiselect";
   /** Choices for select/multiselect. */
   options?: string[];
+  /**
+   * For a `select`: fetch the option list live from the connector's `optionsExec`
+   * (keyed by this field's `key`, via the `connector_options` rpc) instead of the
+   * static {@link options} array. The app renders a searchable dropdown that still
+   * allows a free-typed value. See {@link PluginInfo.optionsExec}.
+   */
+  dynamic?: boolean;
   required?: boolean;
   default?: string | number | boolean;
   description?: string;
@@ -596,6 +603,12 @@ export interface PluginInfo {
   webhooks: WebhookSpec[];
   /** Executable for the patrol-actions role (`catalog.actions`) — see PROTOCOL.md's "Role 4". */
   runAction?: string;
+  /**
+   * Executable that populates `dynamic` select fields, invoked request/response
+   * (`{field,search?}` on stdin → `[{value,label}]` on stdout) by the
+   * `connector_options` rpc.
+   */
+  optionsExec?: string;
   catalog?: PluginCatalog;
   enabled: boolean;
 }
