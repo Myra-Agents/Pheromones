@@ -39,8 +39,12 @@ function toIsoIfValid(date: Date): string | undefined {
  * gap with the Rust backend); the Node scheduler (Phase 3) adds a real cron
  * evaluator. Behavior is otherwise identical to the original browser backend.
  */
-export function computeNextRun(schedule: ScheduleKind, enabled: boolean, lastTriggeredAt?: string): string | undefined {
-  if (!enabled) return undefined;
+export function computeNextRun(
+  schedule: ScheduleKind | undefined,
+  enabled: boolean,
+  lastTriggeredAt?: string,
+): string | undefined {
+  if (!enabled || !schedule) return undefined;
 
   const now = new Date();
   switch (schedule.type) {

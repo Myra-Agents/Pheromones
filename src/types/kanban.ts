@@ -54,6 +54,14 @@ export interface KanbanCard {
   agentFlags?: string[];
   /** Per-card worktree override (falls back to the preset's `useWorktree`). */
   useWorktree?: boolean;
+  /**
+   * The local branch `create_worktree` created for this run (`agent/run-<id>`),
+   * set only when `useWorktree` actually ran. A real branch of `workingDir`'s
+   * repo (worktrees share `.git`), so a post-run action (e.g. GitLab's
+   * `create_mr`) can push it straight from `workingDir` without needing the
+   * ephemeral worktree path itself.
+   */
+  worktreeBranch?: string;
   /** Per-card launch-mode override (falls back to the preset's `launchVia`). */
   launchVia?: "direct" | "ollama";
   /** Per-card local Ollama model (used when `launchVia === "ollama"`). */

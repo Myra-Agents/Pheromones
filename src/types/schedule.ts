@@ -11,6 +11,52 @@ export type ScheduleKind =
   | { type: "interval"; start: string; minutes: number }
   | { type: "cron"; expr: string };
 
+/**
+ * A connector-event trigger, alternative to the time-based {@link ScheduleKind}.
+ * When set, the task ignores `schedule`/`nextRunAt` and instead fires when the
+ * named connector (a plugin under `~/.myra-agents/plugins/<connector>/`) reports
+ * an event whose fields match one of `rules`. First matching rule wins.
+ */
+export interface EventTrigger {
+  connector: string;
+  rules: ConnectorRule[];
+  /**
+   * Connector-specific trigger settings (e.g. the GitLab project + event kinds
+   * to poll) — shape declared by the plugin's `catalog.trigger.config`. The
+   * server's `connector_watch` rpc aggregates these across enabled patrols so
+   * the connector knows what to poll.
+   */
+  config?: Record<string, unknown>;
+}
+
+/**
+ * Same shape every connector's rule matching already uses (see
+ * `plugins/connectors/_sdk/rules.mjs`) — from/subjectContains/bodyContains/regex
+ * matched against the connector's normalized event fields.
+ */
+export interface ConnectorRule {
+  name?: string;
+  from?: string;
+  subjectContains?: string;
+  bodyContains?: string;
+  regex?: string;
+  regexField?: string;
+  agentId?: string;
+  prompt?: string;
+  requireReview?: boolean;
+}
+
+/**
+ * A post-run side effect dispatched to a connector once this task's card
+ * finishes (status → done). `config` values may template the run output:
+ * `{{result}}`, `{{title}}`, `{{status}}`, `{{card.*}}`.
+ */
+export interface Action {
+  connector: string;
+  type: string;
+  config: Record<string, unknown>;
+}
+
 export interface ScheduledTask {
   id: string;
   name: string;
@@ -18,7 +64,20 @@ export interface ScheduledTask {
   cardDescription: string;
   agentPrompt: string;
   tags: string[];
-  schedule: ScheduleKind;
+  /**
+   * Time-based trigger. Optional and **independent** of {@link eventTriggers}: a
+   * patrol may run on a schedule, on connector events, or both. Absent = no
+   * time-based trigger (`nextRunAt` stays unset).
+   */
+  schedule?: ScheduleKind;
+  /**
+   * Connector-event triggers. A patrol fires on **any** of these (e.g. a GitLab
+   * merge request on project A *and* an issue on project B), independently of
+   * {@link schedule} — both can be set at once.
+   */
+  eventTriggers?: EventTrigger[];
+  /** Post-run side effects dispatched to connectors when this task's card finishes. */
+  actions?: Action[];
   enabled: boolean;
 
   // Agent run config inherited by every card this schedule materializes. When
@@ -47,7 +106,10 @@ export interface CreateScheduleInput {
   cardDescription: string;
   agentPrompt: string;
   tags: string[];
-  schedule: ScheduleKind;
+  /** Optional time-based trigger — independent of {@link CreateScheduleInput.eventTriggers}. */
+  schedule?: ScheduleKind;
+  eventTriggers?: EventTrigger[];
+  actions?: Action[];
   enabled: boolean;
   agentPresetId?: string;
   agentFlags?: string[];
@@ -67,7 +129,8 @@ export interface UpdateScheduleInput extends CreateScheduleInput {
 
 const WEEKDAYS = ["", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-export function describeSchedule(kind: ScheduleKind): string {
+export function describeSchedule(kind: ScheduleKind | undefined): string {
+  if (!kind) return "";
   switch (kind.type) {
     case "once": {
       try {

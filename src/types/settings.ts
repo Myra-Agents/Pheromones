@@ -485,15 +485,25 @@ export interface PluginConfigField {
   type: "string" | "secret" | "boolean" | "number" | "select" | "multiselect";
   /** Choices for select/multiselect. */
   options?: string[];
+  /**
+   * For a `select`: fetch the option list live from the connector's `optionsExec`
+   * (keyed by this field's `key`, via the `connector_options` rpc) instead of the
+   * static {@link options} array. The app renders a searchable dropdown that still
+   * allows a free-typed value. See {@link PluginInfo.optionsExec}.
+   */
+  dynamic?: boolean;
   required?: boolean;
   default?: string | number | boolean;
   description?: string;
   placeholder?: string;
+  /** Never rendered in the config form — set programmatically (e.g. an OAuth refresh token filled by Sign in). */
+  hidden?: boolean;
 }
 
 /** Named signature scheme verified by the core for an inbound webhook. */
 export interface WebhookVerify {
-  scheme: "hmac-sha256" | "slack" | "stripe";
+  /** `gitlab` is a plain constant-time compare against `X-Gitlab-Token` (GitLab has no HMAC signature). */
+  scheme: "hmac-sha256" | "slack" | "stripe" | "gitlab";
   /** Header carrying the signature (e.g. X-Hub-Signature-256). */
   header?: string;
   /** Config key whose value is the shared signing secret. */
@@ -507,6 +517,8 @@ export interface WebhookVerify {
 export interface WebhookSpec {
   id: string;
   direction: "out" | "in";
+  /** `in` only — the route works, but the connector's primary trigger is elsewhere (polling), so the app hides the inbound URL by default. */
+  optional?: boolean;
   // outbound
   urlFrom?: string;
   events?: string[];
@@ -518,6 +530,70 @@ export interface WebhookSpec {
   map?: Record<string, string>;
   /** Optional escape hatch: core invokes it request/response for verify/transform. */
   exec?: string;
+}
+
+/** One capability a connector plugin offers post-run, surfaced in the patrol editor's Actions picker. */
+export interface PluginCatalogAction {
+  /** Action type, dispatched to the connector's `actions[id]` handler via `runAction`. */
+  id: string;
+  label: string;
+  summary?: string;
+  /** Rendered as a form; values may template the run result (`{{result}}` `{{title}}` `{{card.*}}`). */
+  config: PluginConfigField[];
+}
+
+/** An in-app "Connect" step (e.g. OAuth consent) run via the `run_plugin_setup` rpc. */
+export interface PluginCatalogSetup {
+  /** Informational — both run the same way (spawn `command`). */
+  type: "oauth" | "cli";
+  /** Shell-split argv, e.g. "node connect.mjs". Spawned with cwd = the plugin dir, env = the instance's resolved config. */
+  command: string;
+  /** Button label, e.g. "Connect GitLab". */
+  label: string;
+}
+
+/**
+ * One authentication method a connector offers, rendered as a tab in the connect
+ * wizard. Groups a subset of the plugin's `config` fields; a `kind: "oauth"`
+ * method also shows a Sign in button (runs {@link PluginCatalogSetup}). Config
+ * fields not claimed by any method (and not `hidden`) render above the tabs.
+ */
+export interface PluginCatalogAuthMethod {
+  id: string;
+  /** Tab label. */
+  label: string;
+  /** `"oauth"` shows a Sign in button; `"token"` is fields only. */
+  kind: "token" | "oauth";
+  /** One-line hint shown inside the tab. */
+  summary?: string;
+  /** Config field keys shown in this tab. Omit for a one-click method with a shipped client. */
+  fields?: string[];
+}
+
+/** Display metadata for the in-app catalog and the trigger/actions pickers — opaque passthrough from the manifest. */
+export interface PluginCatalog {
+  name?: string;
+  icon?: string;
+  description?: string;
+  author?: string;
+  /** `"trigger"` = surfaces in the Add-Trigger picker; `"action"`/`"notify"` = surfaces in the Actions picker. */
+  verbs?: ("trigger" | "action" | "notify" | "receive" | "agent")[];
+  /**
+   * `config` = connector-specific trigger settings rendered in the patrol editor's trigger row.
+   * `ruleOptions` turns a generic rule field (e.g. `from`) into a dynamic dropdown fed by the
+   * connector's `optionsExec` — keyed by rule field, naming the options field + its context deps.
+   */
+  trigger?: {
+    summary?: string;
+    config?: PluginConfigField[];
+    ruleOptions?: Record<string, { optionsField: string; dependsOn?: string[] }>;
+  };
+  actions?: PluginCatalogAction[];
+  setup?: PluginCatalogSetup;
+  /** A "Disconnect" step — same shape/run path as {@link setup}, but forgets the stored credential. */
+  disconnect?: PluginCatalogSetup;
+  /** Auth methods, rendered as tabs in the connect wizard. */
+  auth?: PluginCatalogAuthMethod[];
 }
 
 /**
@@ -537,6 +613,15 @@ export interface PluginInfo {
   config: PluginConfigField[];
   /** Webhooks the core runs for this plugin. */
   webhooks: WebhookSpec[];
+  /** Executable for the patrol-actions role (`catalog.actions`) — see PROTOCOL.md's "Role 4". */
+  runAction?: string;
+  /**
+   * Executable that populates `dynamic` select fields, invoked request/response
+   * (`{field,search?}` on stdin → `[{value,label}]` on stdout) by the
+   * `connector_options` rpc.
+   */
+  optionsExec?: string;
+  catalog?: PluginCatalog;
   enabled: boolean;
 }
 
