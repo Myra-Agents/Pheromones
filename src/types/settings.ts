@@ -489,6 +489,8 @@ export interface PluginConfigField {
   default?: string | number | boolean;
   description?: string;
   placeholder?: string;
+  /** Never rendered in the config form — set programmatically (e.g. an OAuth refresh token filled by Sign in). */
+  hidden?: boolean;
 }
 
 /** Named signature scheme verified by the core for an inbound webhook. */
@@ -541,6 +543,24 @@ export interface PluginCatalogSetup {
   label: string;
 }
 
+/**
+ * One authentication method a connector offers, rendered as a tab in the connect
+ * wizard. Groups a subset of the plugin's `config` fields; a `kind: "oauth"`
+ * method also shows a Sign in button (runs {@link PluginCatalogSetup}). Config
+ * fields not claimed by any method (and not `hidden`) render above the tabs.
+ */
+export interface PluginCatalogAuthMethod {
+  id: string;
+  /** Tab label. */
+  label: string;
+  /** `"oauth"` shows a Sign in button; `"token"` is fields only. */
+  kind: "token" | "oauth";
+  /** One-line hint shown inside the tab. */
+  summary?: string;
+  /** Config field keys shown in this tab. Omit for a one-click method with a shipped client. */
+  fields?: string[];
+}
+
 /** Display metadata for the in-app catalog and the trigger/actions pickers — opaque passthrough from the manifest. */
 export interface PluginCatalog {
   name?: string;
@@ -552,6 +572,8 @@ export interface PluginCatalog {
   trigger?: { summary?: string };
   actions?: PluginCatalogAction[];
   setup?: PluginCatalogSetup;
+  /** Auth methods, rendered as tabs in the connect wizard. */
+  auth?: PluginCatalogAuthMethod[];
 }
 
 /**
