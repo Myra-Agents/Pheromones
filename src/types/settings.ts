@@ -517,6 +517,8 @@ export interface WebhookVerify {
 export interface WebhookSpec {
   id: string;
   direction: "out" | "in";
+  /** `in` only — the route works, but the connector's primary trigger is elsewhere (polling), so the app hides the inbound URL by default. */
+  optional?: boolean;
   // outbound
   urlFrom?: string;
   events?: string[];
