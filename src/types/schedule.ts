@@ -20,6 +20,13 @@ export type ScheduleKind =
 export interface EventTrigger {
   connector: string;
   rules: ConnectorRule[];
+  /**
+   * Connector-specific trigger settings (e.g. the GitLab project + event kinds
+   * to poll) — shape declared by the plugin's `catalog.trigger.config`. The
+   * server's `connector_watch` rpc aggregates these across enabled patrols so
+   * the connector knows what to poll.
+   */
+  config?: Record<string, unknown>;
 }
 
 /**

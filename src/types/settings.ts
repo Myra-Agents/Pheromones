@@ -569,7 +569,8 @@ export interface PluginCatalog {
   author?: string;
   /** `"trigger"` = surfaces in the Add-Trigger picker; `"action"`/`"notify"` = surfaces in the Actions picker. */
   verbs?: ("trigger" | "action" | "notify" | "receive" | "agent")[];
-  trigger?: { summary?: string };
+  /** `config` = connector-specific trigger settings rendered in the patrol editor's trigger row. */
+  trigger?: { summary?: string; config?: PluginConfigField[] };
   actions?: PluginCatalogAction[];
   setup?: PluginCatalogSetup;
   /** Auth methods, rendered as tabs in the connect wizard. */
