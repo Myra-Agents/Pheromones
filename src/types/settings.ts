@@ -590,6 +590,8 @@ export interface PluginCatalog {
   };
   actions?: PluginCatalogAction[];
   setup?: PluginCatalogSetup;
+  /** A "Disconnect" step — same shape/run path as {@link setup}, but forgets the stored credential. */
+  disconnect?: PluginCatalogSetup;
   /** Auth methods, rendered as tabs in the connect wizard. */
   auth?: PluginCatalogAuthMethod[];
 }
